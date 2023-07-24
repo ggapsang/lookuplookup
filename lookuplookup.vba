@@ -15,13 +15,29 @@ Private Sub cmdSubmit_Click()
     Next i
 
     If selectedItems.Count = 0 Then
-        MsgBox "No lookup values selected. Please select at least one lookup value."
+        MsgBox "찾을 값은 한개 이상 입력해야 됨."
     ElseIf txtHeaderRowSource.Value = "" Or txtHeaderRowTarget.Value = "" Or txtKeyValue.Value = "" Then
-        MsgBox "Please fill in all the header row numbers and key value fields."
+        MsgBox "해더 행 번호와 키 값 다시 확인"
     Else
         UpdateTargetWorksheet selectedItems, CLng(txtHeaderRowSource.Value), CLng(txtHeaderRowTarget.Value), txtKeyValue.Value
         Unload Me
     End If
+
+End Sub
+
+Private Sub Label1_Click()
+
+End Sub
+
+Private Sub Label3_Click()
+
+End Sub
+
+Private Sub lstLookupValues_Click()
+
+End Sub
+
+Private Sub txtHeaderRowSource_Change()
 
 End Sub
 
@@ -35,7 +51,7 @@ Private Sub UserForm_Initialize()
     ' Set the target workbook and worksheet
     Set tgtWb = ActiveWorkbook
     Set tgtWs = tgtWb.ActiveSheet
-    tgtHeaderRow = InputBox("Enter the header row number_target : ")
+    tgtHeaderRow = InputBox("해더 행 번호 : ")
 
     lastCol = tgtWs.Cells(tgtHeaderRow, tgtWs.Columns.Count).End(xlToLeft).Column
 
@@ -43,6 +59,7 @@ Private Sub UserForm_Initialize()
         lstLookupValues.AddItem tgtWs.Cells(tgtHeaderRow, i).Value
     Next i
 End Sub
+
 
 
 
@@ -67,13 +84,13 @@ Function GetWorkbook(ByVal sFullName As String) As Workbook
 End Function
 
 Sub RunUpdateTargetWorksheet()
-    ' Show the UserForm to select multiple lookup values
+    ' 유저폼에서 값을 선택할 수 있게 보여줌
     UserForm1.Show
 End Sub
 
 Sub UpdateTargetWorksheet(selectedItems As Collection, srcHeaderRow As Long, tgtHeaderRow As Long, keyValueText As String)
     
-    ' Turn off screen updating and calculation
+    ' 매크로 작업 중 스크린 활성화 정지
     Application.ScreenUpdating = False
     Application.DisplayStatusBar = False
     Application.Calculation = xlCalculationManual
@@ -97,31 +114,31 @@ Sub UpdateTargetWorksheet(selectedItems As Collection, srcHeaderRow As Long, tgt
     Dim tgtKeyCells As Object
     Dim rowNumber As Variant
 
-    ' Set the source range and workbook
+    ' source worksheet 세팅
     Set srcWb = ActiveWorkbook
     Set srcWs = ActiveSheet
 
-    ' Prompt the user to select the target workbook
-    tgtFile = Application.GetOpenFilename(FileFilter:="Excel Files (*.xls*), *.xls*", Title:="Select the target workbook", MultiSelect:=False)
+    ' target workbook 세팅 명령창 실행
+    tgtFile = Application.GetOpenFilename(FileFilter:="Excel Files (*.xls*), *.xls*", Title:="불러올 파일 선택", MultiSelect:=False)
     If tgtFile = False Then
-        MsgBox "No target workbook selected. Exiting the macro."
+        MsgBox "불러올 파일이 선택되지 않아서 매크로를 종료합니다"
         Exit Sub
     End If
 
-    ' Check if the target workbook is already open
+    ' target workbook이 이미 열려있을 경우
     Set tgtWb = GetWorkbook(tgtFile)
 
-    ' If the workbook is not open, open it
+    ' target workbook이 열려 있지 않을 경우 해당 파일을 열음
     If tgtWb Is Nothing Then
         Set tgtWb = Workbooks.Open(tgtFile)
     End If
 
-    ' Set the target worksheet
+    ' target worksheet 세팅
     Set tgtWs = tgtWb.ActiveSheet
 
     startTime = Timer
 
-    ' Find the column numbers for the key value in the source and target header rows
+    ' source worksheet와 target worksheet의 키 값이 해더 행 몇열에 있는지 확인
     srcKeyValueCol = Application.Match(keyValueText, srcWs.Rows(srcHeaderRow), 0)
     tgtKeyValueCol = Application.Match(keyValueText, tgtWs.Rows(tgtHeaderRow), 0)
     ReDim srcLookupValueCol(selectedItems.Count - 1)
@@ -129,19 +146,20 @@ Sub UpdateTargetWorksheet(selectedItems As Collection, srcHeaderRow As Long, tgt
 
     For j = 1 To selectedItems.Count
         srcLookupValueCol(j - 1) = Application.Match(selectedItems.item(j), srcWs.Rows(srcHeaderRow), 0)
+        
         tgtLookupValueCol(j - 1) = Application.Match(selectedItems.item(j), tgtWs.Rows(tgtHeaderRow), 0)
     Next j
 
     If IsError(srcKeyValueCol) Or IsError(tgtKeyValueCol) Then
-        MsgBox "The specified key value text was not found in the header rows. Exiting the macro."
+        MsgBox "해더 행에서 키 값을 찾지 못해 매크로를 종료합니다."
         Exit Sub
     End If
 
 
-    ' Determine the last row with data in the target worksheet
+    ' targetworksheet의 마지막 행 찾기(주의 - sr no가 다 채워지지 않고 중간에 끊기면 에러가 생길 수 있음)
     lastRow = tgtWs.Cells(tgtWs.Rows.Count, tgtKeyValueCol).End(xlUp).Row
 
-    ' Create a Collection to store the key values and their corresponding row numbers from the target worksheet
+    ' 딕셔너리 생성
     Set tgtKeyCells = New Collection
     On Error Resume Next
     For i = tgtHeaderRow + 1 To lastRow
@@ -149,22 +167,22 @@ Sub UpdateTargetWorksheet(selectedItems As Collection, srcHeaderRow As Long, tgt
     Next i
     On Error GoTo 0
 
-    ' Loop through the source range
+    ' loop
     For Each srcKeyCell In srcWs.Range(srcWs.Cells(srcHeaderRow + 1, srcKeyValueCol), srcWs.Cells(srcWs.Rows.Count, srcKeyValueCol).End(xlUp))
-        ' Check if the source row is visible (not filtered out)
+        ' 필터값만 보이게 반영함
         If srcWs.Rows(srcKeyCell.Row).Hidden = False Then
-            ' Find the corresponding row in the target worksheet based on the key value using the collection
+            ' 키 값을 기준으로 target worksheet의 값들이 일치하는지를 비교함
             On Error Resume Next
             rowNumber = tgtKeyCells(CStr(srcKeyCell.Value))
             On Error GoTo 0
             If Not IsEmpty(rowNumber) Then
-                ' Check if the target row is visible (not filtered out)
+                ' 필터값만 보이게 반영함
                 If tgtWs.Rows(rowNumber).Hidden = False Then
-                    ' Compare the lookup values in the source and target worksheets for each specified lookup value
+                    ' source worksheets와 target worksheets의 값들을 비교하여 변경함
                     For j = LBound(srcLookupValueCol) To UBound(srcLookupValueCol)
                         If tgtWs.Cells(rowNumber, tgtLookupValueCol(j)).Value <> srcWs.Cells(srcKeyCell.Row, srcLookupValueCol(j)).Value Then
                             tgtWs.Cells(rowNumber, tgtLookupValueCol(j)).Value = srcWs.Cells(srcKeyCell.Row, srcLookupValueCol(j)).Value
-                            tgtWs.Cells(rowNumber, tgtLookupValueCol(j)).Interior.Color = RGB(255, 165, 0) ' Set the cell background color to orange
+                            tgtWs.Cells(rowNumber, tgtLookupValueCol(j)).Interior.Color = RGB(255, 165, 0) ' 바뀐 값을 주황색으로 만듬(rgb코드로 원하는 색 설정 가능)
                         End If
                     Next j
                 End If
@@ -172,17 +190,17 @@ Sub UpdateTargetWorksheet(selectedItems As Collection, srcHeaderRow As Long, tgt
         End If
     Next srcKeyCell
 
-    ' Turn screen updating and calculation back on
+    ' 매크로 작업 중 스크린 활성화 정지
     Application.ScreenUpdating = True
     Application.Calculation = xlCalculationAutomatic
     Application.DisplayStatusBar = True
     Application.EnableEvents = True
 
-    ' Check process run time
+    ' 작업시간 측정
     finishTime = Timer - startTime
 
-    ' Save the target workbook without closing it
-    tgtWb.Save
-    MsgBox "Target worksheet updated successfully. " & Format(Int(finishTime / 60), "0") & " min " & Format(finishTime Mod 60, "0.00") & " sec"
+    ' 바뀐 값으로 파일을 자동으로 저장함 (현재는 저장 기능 오프 상태 파일이 열려있지 않거나 값을 자동으로 저장하려면 아래 줄 코드에 ' 표시를 빼면 됨
+    'tgtWb.Save
+    MsgBox "끝 " & Format(Int(finishTime / 60), "0") & " min " & Format(finishTime Mod 60, "0.00") & " sec"
 
 End Sub
