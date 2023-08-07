@@ -82,11 +82,51 @@ Function GetWorkbook(ByVal sFullName As String) As Workbook
 
     On Error GoTo 0
 End Function
+Function MatchKeyValue(keyValue As Variant, headerRow As Range) As Long
+Dim cell As Range
+    Dim i As Long
+    
+    For Each cell In headerRow.Cells
+        If IsNumeric(keyValue) And IsNumeric(cell.Value) Then
+            If CDbl(keyValue) = CDbl(cell.Value) Then
+                MatchKeyValue = cell.Column
+                Exit Function
+            End If
+        Else
+            If CStr(keyValue) = CStr(cell.Value) Then
+                MatchKeyValue = cell.Column
+                Exit Function
+            End If
+        End If
+    Next cell
+
+    MatchKeyValue = 0
+End Function
+Function MatchValue(lookupValue As Variant, headerRow As Range) As Long
+    Dim cell As Range
+
+    For Each cell In headerRow.Cells
+        If IsNumeric(lookupValue) And IsNumeric(cell.Value) Then
+            If CDbl(lookupValue) = CDbl(cell.Value) Then
+                MatchValue = cell.Column
+                Exit Function
+            End If
+        Else
+            If CStr(lookupValue) = CStr(cell.Value) Then
+                MatchValue = cell.Column
+                Exit Function
+            End If
+        End If
+    Next cell
+
+    MatchValue = 0
+End Function
 
 Sub RunUpdateTargetWorksheet()
     ' 유저폼에서 값을 선택할 수 있게 보여줌
     UserForm1.Show
 End Sub
+
 
 Sub UpdateTargetWorksheet(selectedItems As Collection, srcHeaderRow As Long, tgtHeaderRow As Long, keyValueText As String)
     
@@ -139,15 +179,14 @@ Sub UpdateTargetWorksheet(selectedItems As Collection, srcHeaderRow As Long, tgt
     startTime = Timer
 
     ' source worksheet와 target worksheet의 키 값이 해더 행 몇열에 있는지 확인
-    srcKeyValueCol = Application.Match(keyValueText, srcWs.Rows(srcHeaderRow), 0)
-    tgtKeyValueCol = Application.Match(keyValueText, tgtWs.Rows(tgtHeaderRow), 0)
+    srcKeyValueCol = MatchKeyValue(keyValueText, srcWs.Rows(srcHeaderRow))
+    tgtKeyValueCol = MatchKeyValue(keyValueText, tgtWs.Rows(srcHeaderRow))
     ReDim srcLookupValueCol(selectedItems.Count - 1)
     ReDim tgtLookupValueCol(selectedItems.Count - 1)
 
     For j = 1 To selectedItems.Count
-        srcLookupValueCol(j - 1) = Application.Match(selectedItems.item(j), srcWs.Rows(srcHeaderRow), 0)
-        
-        tgtLookupValueCol(j - 1) = Application.Match(selectedItems.item(j), tgtWs.Rows(tgtHeaderRow), 0)
+        srcLookupValueCol(j - 1) = MatchValue(selectedItems.item(j), srcWs.Rows(srcHeaderRow))
+        tgtLookupValueCol(j - 1) = MatchValue(selectedItems.item(j), tgtWs.Rows(tgtHeaderRow))
     Next j
 
     If IsError(srcKeyValueCol) Or IsError(tgtKeyValueCol) Then
